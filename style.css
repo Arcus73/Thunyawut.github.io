@@ -1,0 +1,68 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: montserrat;
+  background: #fafafa;
+  height: 100vh;
+  overflow: scroll;
+}
+
+.btn-btn-danger {
+  margin-right: 1rem;
+}
+
+.container {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+  padding-left: 35px;
+  padding-right: 35px;
+  z-index: 1;
+}
+.container h3 {
+  text-align: center;
+  padding: 0 0 20px 0;
+  color: #296bfa;
+}
+.mb-3 {
+  color: #296bfa;
+}
+
+.navbar-nav .nav-link {
+  color: #296bfa; /* กำหนดสีตัวหนังสือ */
+}
+
+.signup_link {
+  margin: 3px 0;
+  text-align: center;
+  font-size: 16px;
+  color: #666666;
+}
+.container-md {
+  margin-top: 10%;
+}
+
+.container-md h2 {
+  padding-top: 10px;
+}
+
+.navbar-text {
+  color: #296bfa;
+}
+
+.container .mb-3 {
+  margin-top: 2rem;
+}
+
+.navbar {
+  position: fixed; /* ตั้งค่า position เป็น fixed เพื่อให้ค้างอยู่ด้านบนของหน้าเว็บ */
+  width: 100%;
+  top: 0;
+  z-index: 2; /* ตั้งค่าควบคุมการแสดงผลแบบ z-index เพื่อให้แสดงเหนือทุกอย่าง */
+  /* รูปแบบอื่น ๆ ของเมนู */
+}
