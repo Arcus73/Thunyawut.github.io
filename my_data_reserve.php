@@ -3,18 +3,43 @@ require_once 'config/db.php';
 session_start();
 date_default_timezone_set("Asia/Bangkok");
 
+$records_per_page = 5; // Number of records per page
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1; // Get current page or set default to 1
+$start_from = ($page - 1) * $records_per_page; // Calculate the starting record
+
 // ตรวจสอบการเข้าสู่ระบบก่อนในกรณีที่ต้องการแสดงรายการจองของยูสเซอร์นั้น ๆ
 if (isset($_SESSION['user_login'])) {
     // ถ้ามีค่า id ให้เก็บไว้ในตัวแปร $user_id
     $user_id = $_SESSION['user_login'];
 
-    // ทำอย่างอื่นตามต้องการโดยใช้ค่า $user_id ที่ได้รับจาก $_SESSION['user_login']['id']
-    // ...
+    // เชื่อมต่อฐานข้อมูล
+    $conn = new PDO("mysql:host=localhost;dbname=register_db", "root", "");
+
+    // คำนวณจำนวนหน้าทั้งหมด
+    $stmt_total = $conn->prepare("SELECT COUNT(*) FROM football_field WHERE user_id = :user_id");
+    $stmt_total->bindParam(":user_id", $user_id);
+    $stmt_total->execute();
+    $total_records = $stmt_total->fetchColumn();
+    $total_pages = ceil($total_records / $records_per_page);
+
+    // ดึงข้อมูลสำหรับหน้าปัจจุบัน
+    $stmt = $conn->prepare("SELECT ff.*, img.image AS image, img.status AS image_status
+                            FROM football_field AS ff 
+                            LEFT JOIN imagesdb AS img 
+                            ON ff.resever_id = img.resever_id 
+                            WHERE ff.user_id = :user_id 
+                            ORDER BY ff.resever_id DESC
+                            LIMIT :start_from, :records_per_page");
+
+    $stmt->bindParam(":user_id", $user_id);
+    $stmt->bindParam(":start_from", $start_from, PDO::PARAM_INT);
+    $stmt->bindParam(":records_per_page", $records_per_page, PDO::PARAM_INT);
+    $stmt->execute();
+    $result = $stmt->fetchAll();
 } else {
     // ถ้าไม่มีค่า id ใน $_SESSION ให้ทำอย่างอื่นตามต้องการ
     echo "ไม่พบค่า id ที่เก็บมา";
 }
-
 ?>
 
 <!DOCTYPE html>
@@ -29,11 +54,7 @@ if (isset($_SESSION['user_login'])) {
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
-
-
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-
-
 </head>
 <script>
 function uploadImage(resever_id) {
@@ -50,7 +71,7 @@ function viewImage(imagePath) {
 </script>
 
 <body>
-  <nav class="navbar navbar-expand-lg navbar-light bg-light "
+  <nav class="navbar navbar-expand-lg navbar-light bg-light"
     style="background-color: #ffffff; box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px; ">
     <div class="container-fluid">
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
@@ -79,42 +100,28 @@ function viewImage(imagePath) {
         </ul>
       </div>
     </div>
-
     <a href="logout.php" class="btn btn-danger ">Logout</a>
   </nav>
-  <?php if(isset($_SESSION['error'])) { ?>
+  <?php if (isset($_SESSION['error'])) { ?>
   <div class="alert alert-danger" role="alert">
     <?php 
-                echo $_SESSION['error'];
-                unset($_SESSION['error']);
-            ?>
+            echo $_SESSION['error'];
+            unset($_SESSION['error']);
+        ?>
   </div>
   <?php } ?>
 
-  <br>
-  <br>
+  <br><br>
 
   <div class="container">
     <h4>รายการจองของคุณ</h4>
     <?php
-        $conn = new PDO("mysql:host=localhost;dbname=register_db", "root", "");
-        $stmt = $conn->prepare("SELECT ff.*, img.image AS image, img.status AS image_status
-                       FROM football_field AS ff 
-                       LEFT JOIN imagesdb AS img 
-                       ON ff.resever_id = img.resever_id 
-                       WHERE ff.user_id = :user_id ORDER BY ff.resever_id DESC"
-                       ); 
-
-        $stmt->bindParam(":user_id", $user_id);
-        $stmt->execute();
-        $result = $stmt->fetchAll();
-
         if ($stmt->rowCount() > 0) {
         ?>
     <table class="table table-striped">
       <thead>
         <tr>
-          <?php if(isset($_SESSION['success'])) { ?>
+          <?php if (isset($_SESSION['success'])) { ?>
           <div class="alert alert-success" role="alert">
             <?php 
                             echo $_SESSION['success'];
@@ -122,7 +129,7 @@ function viewImage(imagePath) {
                         ?>
           </div>
           <?php } ?>
-          <?php if(isset($_SESSION['warning'])) { ?>
+          <?php if (isset($_SESSION['warning'])) { ?>
           <div class="alert alert-warning" role="alert">
             <?php 
                             echo $_SESSION['warning'];
@@ -150,7 +157,6 @@ function viewImage(imagePath) {
           <td><?= $row['start_time'] ?></td>
           <td><?= $row['end_time'] ?></td>
           <td><?= $row['field_number'] ?></td>
-
           <td>
             <?php if ($row['status'] === 'อัปโหลดสลิปแล้ว' || $row['status'] === 'ยกเลิกการจอง' || $row['status'] === 'ยืนยันการจองแล้ว') : ?>
             <?= $row['status'] ?>
@@ -158,9 +164,8 @@ function viewImage(imagePath) {
             <a href="confirm_reserve.php?resever_id=<?= $row['resever_id'] ?>"><?= $row['status'] ?></a>
             <?php endif; ?>
           </td>
-
           <td>
-            <?php if ($row['image_status'] === 'อัปโหลดสลิปแล้ว' || $row['status'] === 'ยกเลิกการจองแล้ว' && $row['image']) : ?>
+            <?php if ($row['image_status'] === 'อัปโหลดสลิปแล้ว' || ($row['status'] === 'ยกเลิกการจองแล้ว' && $row['image'])) : ?>
             <!-- แสดงรูปภาพและเพิ่มลิงก์ไปยังรูปภาพในขนาดใหญ่ -->
             <a href="#" onclick="viewImage('uploads/<?= $row['image'] ?>')">
               <img src="uploads/<?= $row['image'] ?>" alt="รูปภาพที่อัปโหลด"
@@ -168,15 +173,11 @@ function viewImage(imagePath) {
             </a>
             <?php elseif ($row['image_status'] === 'รออัปโหลดสลิป') : ?>
             <!-- แสดงข้อความ "รออัปโหลดสลิป" แต่ไม่แสดงภาพ -->
-
             <span>รออัปโหลดสลิป</span>
             <?php else : ?>
             <!-- แสดงข้อความ "ไม่มีรูปภาพ" แต่ไม่แสดงภาพ -->
             <span>ไม่มีรูปภาพ</span>
             <?php endif; ?>
-
-
-
           </td>
           <td>
             <a href="edit_image.php?resever_id=<?= $row['resever_id'] ?>"
@@ -192,6 +193,32 @@ function viewImage(imagePath) {
         }
         ?>
   </div>
+
+  <?php if ($total_pages > 1): ?>
+  <nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+      <?php if ($page > 1): ?>
+      <li class="page-item">
+        <a class="page-link" href="?page=<?= $page - 1 ?>" aria-label="Previous">
+          <span aria-hidden="true">&laquo;</span>
+        </a>
+      </li>
+      <?php endif; ?>
+      <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+      <li class="page-item <?= ($i == $page) ? 'active' : '' ?>">
+        <a class="page-link" href="?page=<?= $i ?>"><?= $i ?></a>
+      </li>
+      <?php endfor; ?>
+      <?php if ($page < $total_pages): ?>
+      <li class="page-item">
+        <a class="page-link" href="?page=<?= $page + 1 ?>" aria-label="Next">
+          <span aria-hidden="true">&raquo;</span>
+        </a>
+      </li>
+      <?php endif; ?>
+    </ul>
+  </nav>
+  <?php endif; ?>
 </body>
 
 </html>

@@ -4,11 +4,10 @@ require_once 'config/db.php';
 session_start();
 date_default_timezone_set("Asia/Bangkok");
 
-    require_once 'config/db.php';
-    if (!isset($_SESSION['admin_login'])) {
-        $_SESSION['error'] = 'กรุณาเข้าสู่ระบบ!';
-        header('location: signin.php');
-    }
+if (!isset($_SESSION['admin_login'])) {
+    $_SESSION['error'] = 'กรุณาเข้าสู่ระบบ!';
+    header('location: signin.php');
+}
 
 if (isset($_GET['delete_id'])) {
     $delete_stmt = $conn->prepare('DELETE FROM football_field WHERE resever_id = :resever_id');
@@ -17,6 +16,22 @@ if (isset($_GET['delete_id'])) {
     $_SESSION['success'] = 'ลบข้อมูลเรียบร้อยแล้ว';
     header('location: admin_test.php');
 }
+
+// Pagination variables
+$limit = 10; // Number of entries to show in a page.
+if (isset($_GET['page'])) {
+    $page = $_GET['page'];
+} else {
+    $page = 1;
+}
+
+$start = ($page - 1) * $limit;
+
+// Query to count total records
+$total_stmt = $conn->prepare("SELECT COUNT(*) FROM football_field");
+$total_stmt->execute();
+$total_records = $total_stmt->fetchColumn();
+$total_pages = ceil($total_records / $limit);
 
 ?>
 
@@ -96,7 +111,6 @@ if (isset($_GET['delete_id'])) {
   <br>
   <script>
   function uploadImage(resever_id) {
-    // ส่งค่า resever_id ไปยังหน้า confirm_reserve.php โดยใช้ URL parameter
     window.location.href = "confirm_reserve.php?resever_id=" + resever_id;
   }
   </script>
@@ -125,29 +139,28 @@ if (isset($_GET['delete_id'])) {
 
 
         <?php
-            // ถ้ามีการส่ง $_GET['q']
             if (isset($_GET['q'])) {
                 $stmt = $conn->prepare("SELECT ff.*, img.image AS image, img.status AS image_status
                                        FROM football_field AS ff 
                                        LEFT JOIN imagesdb AS img 
                                        ON ff.resever_id = img.resever_id 
-                                       WHERE ff.date_reserve = ?  ORDER BY ff.resever_id DESC, ff.start_time ASC ");
+                                       WHERE ff.date_reserve = ? 
+                                       ORDER BY ff.resever_id DESC, ff.start_time ASC 
+                                       LIMIT $start, $limit");
                 $stmt->execute([$_GET['q']]);
             } else {
                 $stmt = $conn->prepare("SELECT ff.*, img.image AS image, img.status AS image_status
                                        FROM football_field AS ff 
                                        LEFT JOIN imagesdb AS img 
                                        ON ff.resever_id = img.resever_id 
-                                       ORDER BY ff.resever_id DESC, ff.start_time ASC");
+                                       ORDER BY ff.resever_id DESC, ff.start_time ASC
+                                       LIMIT $start, $limit");
                 $stmt->execute();
             }
          
             $result = $stmt->fetchAll();
             
-            // แสดงข้อมูลทั้งหมด
-
-                // ถ้าเจอข้อมูลมากกว่า 0
-                if ($stmt->rowCount() > 0): ?>
+            if ($stmt->rowCount() > 0): ?>
         <br>
         <table class="table table-striped table-hover table-responsive table-bordered">
           <thead>
@@ -233,7 +246,6 @@ if (isset($_GET['delete_id'])) {
                     reverseButtons: true,
                   }).then((result) => {
                     if (result.isConfirmed) {
-                      // หากผู้ใช้กด "ใช่" ให้ทำการส่งคำขอลบข้อมูลไปยัง "delete_reservation.php" โดยใช้เมธอด POST
                       const deleteForm = document.getElementById('deleteForm-' + resever_id);
                       deleteForm.submit();
                     }
@@ -265,7 +277,6 @@ if (isset($_GET['delete_id'])) {
                   reverseButtons: true,
                 }).then((result) => {
                   if (result.isConfirmed) {
-                    // หากผู้ใช้กด "ใช่" ให้ทำการส่งคำขอเปลี่ยนสถานะไปยัง "admin_status_reservation.php" โดยใช้เมธอด POST
                     const statusForm = document.getElementById('statusForm-' + resever_id);
                     statusForm.submit();
                   }
@@ -290,7 +301,6 @@ if (isset($_GET['delete_id'])) {
                     reverseButtons: true,
                   }).then((result) => {
                     if (result.isConfirmed) {
-                      // หากผู้ใช้กด "ใช่" ให้ทำการส่งคำขอยกเลิกรายการจองไปยัง "cancel_reservation.php" โดยใช้เมธอด POST
                       const cancelForm = document.getElementById('cancelForm-' + resever_id);
                       cancelForm.submit();
                     }
@@ -302,12 +312,31 @@ if (isset($_GET['delete_id'])) {
             <?php endforeach; ?>
           </tbody>
         </table>
+        <div>
+          <nav>
+            <ul class="pagination justify-content-center">
+              <?php if ($page > 1): ?>
+              <li class="page-item">
+                <a class="page-link" href="admin_test.php?page=<?= $page - 1 ?>">Previous</a>
+              </li>
+              <?php endif; ?>
+              <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+              <li class="page-item <?= $i == $page ? 'active' : '' ?>">
+                <a class="page-link" href="admin_test.php?page=<?= $i ?>"><?= $i ?></a>
+              </li>
+              <?php endfor; ?>
+              <?php if ($page < $total_pages): ?>
+              <li class="page-item">
+                <a class="page-link" href="admin_test.php?page=<?= $page + 1 ?>">Next</a>
+              </li>
+              <?php endif; ?>
+            </ul>
+          </nav>
+        </div>
         <?php else: ?>
         <a> -ไม่พบข้อมูล !! </a>
         <?php endif; ?>
       </div>
-
-      <!-- ... your JavaScript imports and other content ... -->
 </body>
 
 </html>
